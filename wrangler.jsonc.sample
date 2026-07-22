@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anemochore-hono",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-20",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "GPX_STORE",
+      "id": "<REPLACE_WITH_YOUR_KV_NAMESPACE_ID>"
+    }
+  ],
+  "vars": {
+    "VIEWER_URL": "<REPLACE_WITH_YOUR_VIEWER_URL_OR_LEAVE_BLANK>"
+  }
+}
