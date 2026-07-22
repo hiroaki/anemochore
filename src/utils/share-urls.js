@@ -7,10 +7,10 @@ export function createDeleteUrl(request, id, deleteKey) {
   return `${url.origin}/api/gpx/${id}/delete?key=${encodeURIComponent(deleteKey)}`;
 }
 
-export function createViewerUrl(viewerUrl, gpxUrl) {
+export function createViewerUrl(viewerUrl, geodataUrl) {
   if (!viewerUrl) return null;
 
   const url = new URL(viewerUrl);
-  url.searchParams.set("gpx", gpxUrl);
+  url.searchParams.set("gpx", geodataUrl);
   return url.toString();
 }

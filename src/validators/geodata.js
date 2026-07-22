@@ -2,7 +2,15 @@ import { XMLParser } from "fast-xml-parser";
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
-export function validateGpx(content) {
+const validators = {
+  gpx: validateGpx,
+};
+
+export function validateGeodata(format, content) {
+  return validators[format]?.(content) ?? false;
+}
+
+function validateGpx(content) {
   const parser = new XMLParser({ ignoreAttributes: false });
 
   try {

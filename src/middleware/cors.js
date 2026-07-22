@@ -4,7 +4,7 @@ const headers = {
   "Access-Control-Allow-Headers": "Content-Type, X-Delete-Key",
 };
 
-export function cors(c, next) {
+export function handlePreflight(c, next) {
   if (c.req.method === "OPTIONS") {
     return c.body(null, 200, headers);
   }
@@ -12,6 +12,6 @@ export function cors(c, next) {
   return next();
 }
 
-export function withCors(headersToMerge = {}) {
+export function apiCorsHeaders(headersToMerge = {}) {
   return { ...headers, ...headersToMerge };
 }

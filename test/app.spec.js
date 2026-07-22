@@ -40,6 +40,17 @@ describe("Hono migration compatibility", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
+  it("keeps the original CORS preflight response for every path", async () => {
+    const response = await createApp().fetch(new Request("https://worker.example/unknown", {
+      method: "OPTIONS",
+    }), createEnv());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, DELETE, OPTIONS");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type, X-Delete-Key");
+  });
+
   it("uploads, retrieves, and deletes a GPX with the original JSON fields", async () => {
     const app = createApp();
     const env = createEnv();
@@ -81,6 +92,19 @@ describe("Hono migration compatibility", () => {
       body: new FormData(),
     }), env);
     expect(await tooLarge.json()).toEqual({ error: "file too large" });
+  });
+
+  it("uses the same upload error message for the browser form", async () => {
+    const formData = new FormData();
+    formData.set("file", new File(["<gpx></gpx>"], "invalid.gpx"));
+    const response = await createApp().fetch(new Request("https://worker.example/upload", {
+      method: "POST",
+      body: formData,
+    }), createEnv());
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=UTF-8");
+    expect(await response.text()).toBe("Upload failed: invalid GPX file");
   });
 
   it("shows the confirmation page and rejects an invalid key", async () => {

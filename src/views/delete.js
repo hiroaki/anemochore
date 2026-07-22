@@ -1,12 +1,7 @@
+import { page } from "./layout.js";
+
 export function deleteConfirmationPage(id, key) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Delete GPX</title>
-</head>
-<body>
+  return page("Delete GPX", `
 
 <h1>Delete GPX</h1>
 
@@ -20,29 +15,16 @@ This operation cannot be undone.
 Delete
 </button>
 </form>
-
-</body>
-</html>
-`;
+`);
 }
 
 export function deletedPage() {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Deleted</title>
-</head>
-<body>
+  return page("Deleted", `
 
 <h1>Deleted</h1>
 
 <p>
 The GPX file has been deleted.
 </p>
-
-</body>
-</html>
-`;
+`);
 }

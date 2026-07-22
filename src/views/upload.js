@@ -1,12 +1,7 @@
+import { page } from "./layout.js";
+
 export function uploadPage() {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Anemochore</title>
-</head>
-<body>
+  return page("Anemochore", `
 
 <h1>Anemochore</h1>
 
@@ -14,21 +9,11 @@ export function uploadPage() {
   <input type="file" name="file" accept=".gpx">
   <button type="submit">Upload</button>
 </form>
-
-</body>
-</html>
-`;
+`);
 }
 
 export function uploadResultPage(result) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Uploaded</title>
-</head>
-<body>
+  return page("Uploaded", `
 
 <h1>Uploaded</h1>
 
@@ -57,8 +42,5 @@ Delete URL:
 ${result.delete_url}
 </a>
 </p>
-
-</body>
-</html>
-`;
+`);
 }
