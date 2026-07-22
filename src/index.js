@@ -1,7 +1,7 @@
 import { createApp } from "./app.js";
 
+const app = createApp();
+
 export default {
-  fetch(request, env, executionContext) {
-    return createApp().fetch(request, env, executionContext);
-  },
+  fetch: app.fetch,
 };

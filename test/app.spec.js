@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import worker from "../src/index.js";
 
 const validGpx = "<?xml version=\"1.0\"?><gpx><trk><name>test</name></trk></gpx>";
 
@@ -33,6 +34,16 @@ async function upload(app, env) {
 }
 
 describe("Hono migration compatibility", () => {
+  it("serves requests through the module-level Worker app", async () => {
+    const response = await worker.fetch(
+      new Request("https://worker.example/api/health"),
+      createEnv(),
+      {},
+    );
+
+    expect(await response.json()).toEqual({ status: "ok" });
+  });
+
   it("returns the original health response and CORS headers", async () => {
     const response = await createApp().fetch(new Request("https://worker.example/api/health"), createEnv());
     expect(response.status).toBe(200);
