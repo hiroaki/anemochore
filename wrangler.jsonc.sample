@@ -16,6 +16,16 @@
       "id": "<REPLACE_WITH_YOUR_KV_NAMESPACE_ID>"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "UPLOAD_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
   "vars": {
     "VIEWER_URL": ""
   }

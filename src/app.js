@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { handlePreflight } from "./middleware/cors.js";
 import { applySecurityHeaders } from "./middleware/security-headers.js";
 import { attachServices } from "./middleware/services.js";
+import { uploadRateLimit } from "./middleware/rate-limit.js";
 import { browserRoutes } from "./routes/browser.js";
 import { apiRoutes } from "./routes/api.js";
 import { UploadError } from "./errors/upload-error.js";
@@ -13,6 +14,8 @@ export function createApp() {
   app.use("*", applySecurityHeaders);
   app.use("*", handlePreflight);
   app.use("*", attachServices);
+  app.use("/api/upload", uploadRateLimit);
+  app.use("/upload", uploadRateLimit);
   app.route("/", browserRoutes);
   app.route("/", apiRoutes);
   app.notFound((c) => c.text("Not Found", 404));
