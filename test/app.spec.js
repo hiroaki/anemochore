@@ -22,6 +22,11 @@ function createEnv() {
         entries.delete(key);
       },
     },
+    UPLOAD_RATE_LIMITER: {
+      async limit() {
+        return { success: true };
+      }
+    }
   };
 
   env.entries = entries;
@@ -192,7 +197,7 @@ describe("Hono migration compatibility", () => {
     expect(confirmation.status).toBe(200);
     expect(await confirmation.text()).toContain("This operation cannot be undone.");
 
-    const rejected = await app.fetch(new Request(`https://worker.example/api/gpx/${result.id}/delete?key=wrong`), env);
+    const rejected = await app.fetch(new Request(`https://worker.example/gpx/${result.id}/delete?key=wrong`), env);
     expect(rejected.status).toBe(403);
     expect(await rejected.text()).toBe("Invalid delete key");
   });

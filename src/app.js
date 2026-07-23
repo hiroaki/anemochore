@@ -17,7 +17,7 @@ export function createApp() {
   app.use("/upload", uploadRateLimit);
   app.use("*", attachServices);
   app.route("/", browserRoutes);
-  app.route("/", apiRoutes);
+  app.route("/api", apiRoutes);
   app.notFound((c) => c.text("Not Found", 404));
   app.onError((error, c) => {
     if (error instanceof UploadError) {

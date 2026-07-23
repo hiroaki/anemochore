@@ -4,14 +4,14 @@ import { apiJson } from "../utils/responses.js";
 
 export const apiRoutes = new Hono();
 
-apiRoutes.get("/api/health", (c) => apiJson(c, { status: "ok" }));
+apiRoutes.get("/health", (c) => apiJson(c, { status: "ok" }));
 
-apiRoutes.post("/api/upload", async (c) => apiJson(
+apiRoutes.post("/upload", async (c) => apiJson(
   c,
   await c.get("geodata").uploadGpx(c.req.raw),
 ));
 
-apiRoutes.get("/api/gpx/:id", async (c) => {
+apiRoutes.get("/gpx/:id", async (c) => {
   const id = c.req.param("id");
   if (!/^[a-zA-Z0-9-]+$/.test(id)) return c.text("Not Found", 404);
 
@@ -23,8 +23,8 @@ apiRoutes.get("/api/gpx/:id", async (c) => {
   }));
 });
 
-apiRoutes.delete("/api/gpx/*", async (c) => {
-  const id = c.req.path.split("/").pop();
+apiRoutes.delete("/gpx/:id", async (c) => {
+  const id = c.req.param("id");
   const geodata = c.get("geodata");
   const data = await geodata.get(id);
 

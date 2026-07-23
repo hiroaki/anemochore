@@ -10,7 +10,7 @@ export function deleteConfirmationPage(id, key) {
 This operation cannot be undone.
 </p>
 
-<form method="POST" action="/api/gpx/${id}/delete">
+<form method="POST" action="/gpx/${id}/delete">
 <input type="hidden" name="key" value="${key}">
 <button type="submit">
 Delete

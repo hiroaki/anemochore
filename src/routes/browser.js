@@ -12,7 +12,7 @@ browserRoutes.post("/upload", async (c) => html(
   uploadResultPage(await c.get("geodata").uploadGpx(c.req.raw)),
 ));
 
-browserRoutes.get("/api/gpx/:id/delete", async (c) => {
+browserRoutes.get("/gpx/:id/delete", async (c) => {
   const id = c.req.param("id");
   const key = c.req.query("key");
   const data = await c.get("geodata").get(id);
@@ -24,7 +24,7 @@ browserRoutes.get("/api/gpx/:id/delete", async (c) => {
   return html(c, deleteConfirmationPage(id, key));
 });
 
-browserRoutes.post("/api/gpx/:id/delete", async (c) => {
+browserRoutes.post("/gpx/:id/delete", async (c) => {
   const id = c.req.param("id");
   const formData = await c.req.raw.formData();
   const key = formData.get("key");
