@@ -1,4 +1,4 @@
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
@@ -14,6 +14,8 @@ function validateGpx(content) {
   const parser = new XMLParser({ ignoreAttributes: false });
 
   try {
+    if (XMLValidator.validate(content) !== true) return false;
+
     const parsed = parser.parse(content);
     if (!parsed.gpx) return false;
 

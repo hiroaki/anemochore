@@ -1,5 +1,7 @@
+import { html } from "hono/html";
+
 export function page(title, body) {
-  return `
+  return html`
 <!DOCTYPE html>
 <html>
 <head>

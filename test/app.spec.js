@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import worker from "../src/index.js";
+import { uploadResultPage } from "../src/views/upload.js";
 
 const validGpx = "<?xml version=\"1.0\"?><gpx><trk><name>test</name></trk></gpx>";
 
 function createEnv() {
   const entries = new Map();
-  return {
+  const env = {
     VIEWER_URL: "https://viewer.example/?existing=value",
     GPX_STORE: {
       async put(key, value, options) {
@@ -22,6 +23,9 @@ function createEnv() {
       },
     },
   };
+
+  env.entries = entries;
+  return env;
 }
 
 async function upload(app, env) {
@@ -34,6 +38,18 @@ async function upload(app, env) {
 }
 
 describe("Hono migration compatibility", () => {
+  it("escapes dynamic HTML values through Hono's html helper", () => {
+    const page = String(uploadResultPage({
+      url: 'https://worker.example/api/gpx/x"><script>alert(1)</script>',
+      viewer_url: null,
+      delete_url: "https://worker.example/delete?key=<unsafe>",
+    }));
+
+    expect(page).not.toContain("<script>alert(1)</script>");
+    expect(page).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(page).toContain("&lt;unsafe&gt;");
+  });
+
   it("serves requests through the module-level Worker app", async () => {
     const response = await worker.fetch(
       new Request("https://worker.example/api/health"),
@@ -49,6 +65,9 @@ describe("Hono migration compatibility", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: "ok" });
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Content-Security-Policy")).toContain("form-action 'self'");
   });
 
   it("keeps the original CORS preflight response for every path", async () => {
@@ -72,6 +91,14 @@ describe("Hono migration compatibility", () => {
     expect(result.url).toBe(`https://worker.example/api/gpx/${result.id}`);
     expect(result.viewer_url).toBe(`https://viewer.example/?existing=value&gpx=${encodeURIComponent(result.url)}`);
     expect(env.GPX_STORE.lastPutOptions).toEqual({ expirationTtl: 86400 });
+    expect(env.entries.get(result.id)).toMatchObject({
+      format: "gpx",
+      content_type: "application/gpx+xml; charset=utf-8",
+      extension: "gpx",
+      content: validGpx,
+    });
+    expect(env.entries.get(result.id).delete_key).toEqual(expect.any(String));
+    expect(new Date(env.entries.get(result.id).created_at).toISOString()).toBe(env.entries.get(result.id).created_at);
 
     const gpxResponse = await app.fetch(new Request(result.url), env);
     expect(gpxResponse.headers.get("Content-Type")).toBe("application/gpx+xml; charset=utf-8");
@@ -103,6 +130,45 @@ describe("Hono migration compatibility", () => {
       body: new FormData(),
     }), env);
     expect(await tooLarge.json()).toEqual({ error: "file too large" });
+  });
+
+  it("rejects malformed XML and XML that is not GPX", async () => {
+    const app = createApp();
+    const env = createEnv();
+
+    for (const content of ["<gpx><trk></gpx>", "<document><track /></document>"]) {
+      const formData = new FormData();
+      formData.set("file", new File([content], "invalid.gpx"));
+      const response = await app.fetch(new Request("https://worker.example/api/upload", {
+        method: "POST",
+        body: formData,
+      }), env);
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "invalid GPX file" });
+    }
+  });
+
+  it("uses the stored content type and supports legacy stored GPX records", async () => {
+    const app = createApp();
+    const env = createEnv();
+    await env.GPX_STORE.put("stored-type", JSON.stringify({
+      format: "gpx",
+      content_type: "application/example-gpx+xml",
+      content: validGpx,
+      delete_key: "stored-type-key",
+    }));
+    await env.GPX_STORE.put("legacy-gpx", JSON.stringify({
+      content: validGpx,
+      delete_key: "legacy-key",
+    }));
+
+    const storedTypeResponse = await app.fetch(new Request("https://worker.example/api/gpx/stored-type"), env);
+    expect(storedTypeResponse.headers.get("Content-Type")).toBe("application/example-gpx+xml");
+
+    const legacyResponse = await app.fetch(new Request("https://worker.example/api/gpx/legacy-gpx"), env);
+    expect(legacyResponse.headers.get("Content-Type")).toBe("application/gpx+xml; charset=utf-8");
+    expect(await legacyResponse.text()).toBe(validGpx);
   });
 
   it("uses the same upload error message for the browser form", async () => {

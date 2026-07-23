@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { handlePreflight } from "./middleware/cors.js";
+import { applySecurityHeaders } from "./middleware/security-headers.js";
 import { attachServices } from "./middleware/services.js";
 import { browserRoutes } from "./routes/browser.js";
 import { apiRoutes } from "./routes/api.js";
@@ -9,6 +10,7 @@ import { apiJson } from "./utils/responses.js";
 export function createApp() {
   const app = new Hono();
 
+  app.use("*", applySecurityHeaders);
   app.use("*", handlePreflight);
   app.use("*", attachServices);
   app.route("/", browserRoutes);

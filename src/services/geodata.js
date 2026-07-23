@@ -4,6 +4,8 @@ import { MAX_UPLOAD_BYTES, validateGeodata } from "../validators/geodata.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
 const GPX_FORMAT = "gpx";
+const GPX_CONTENT_TYPE = "application/gpx+xml; charset=utf-8";
+const GPX_EXTENSION = "gpx";
 
 export function createGeodataService({ storage, viewerUrl }) {
   return {
@@ -12,7 +14,14 @@ export function createGeodataService({ storage, viewerUrl }) {
       const id = crypto.randomUUID();
       const deleteKey = crypto.randomUUID();
 
-      await storage.put(id, { content, delete_key: deleteKey }, {
+      await storage.put(id, {
+        format: GPX_FORMAT,
+        content_type: GPX_CONTENT_TYPE,
+        extension: GPX_EXTENSION,
+        content,
+        delete_key: deleteKey,
+        created_at: new Date().toISOString(),
+      }, {
         expirationTtl: EXPIRATION_SECONDS,
       });
 

@@ -1,7 +1,8 @@
+import { html } from "hono/html";
 import { page } from "./layout.js";
 
 export function deleteConfirmationPage(id, key) {
-  return page("Delete GPX", `
+  return page("Delete GPX", html`
 
 <h1>Delete GPX</h1>
 
@@ -19,7 +20,7 @@ Delete
 }
 
 export function deletedPage() {
-  return page("Deleted", `
+  return page("Deleted", html`
 
 <h1>Deleted</h1>
 

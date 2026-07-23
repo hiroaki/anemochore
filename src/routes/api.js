@@ -19,7 +19,7 @@ apiRoutes.get("/api/gpx/:id", async (c) => {
   if (!data) return apiJson(c, { error: "not found" }, 404);
 
   return c.body(data.content, 200, apiCorsHeaders({
-    "Content-Type": "application/gpx+xml; charset=utf-8",
+    "Content-Type": data.content_type || "application/gpx+xml; charset=utf-8",
   }));
 });
 

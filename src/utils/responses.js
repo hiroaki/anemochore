@@ -5,5 +5,5 @@ export function apiJson(c, body, status = 200) {
 }
 
 export function html(c, body) {
-  return c.body(body, 200, { "Content-Type": "text/html; charset=utf-8" });
+  return c.body(String(body), 200, { "Content-Type": "text/html; charset=utf-8" });
 }

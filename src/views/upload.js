@@ -1,7 +1,8 @@
+import { html } from "hono/html";
 import { page } from "./layout.js";
 
 export function uploadPage() {
-  return page("Anemochore", `
+  return page("Anemochore", html`
 
 <h1>Anemochore</h1>
 
@@ -13,7 +14,7 @@ export function uploadPage() {
 }
 
 export function uploadResultPage(result) {
-  return page("Uploaded", `
+  return page("Uploaded", html`
 
 <h1>Uploaded</h1>
 
@@ -25,7 +26,7 @@ ${result.url}
 </a>
 </p>
 
-${result.viewer_url ? `
+${result.viewer_url ? html`
 <p>
 View:
 <br>
