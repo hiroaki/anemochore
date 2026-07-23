@@ -2,11 +2,6 @@ export function createGpxUrl(request, id) {
   return `${new URL(request.url).origin}/api/gpx/${id}`;
 }
 
-export function createDeleteUrl(request, id, deleteKey) {
-  const url = new URL(request.url);
-  return `${url.origin}/gpx/${id}/delete?key=${encodeURIComponent(deleteKey)}`;
-}
-
 export function createViewerUrl(viewerUrl, geodataUrl) {
   if (!viewerUrl) return null;
 

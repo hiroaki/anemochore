@@ -45,7 +45,7 @@ describe("Hono migration compatibility", () => {
   it("escapes dynamic HTML values through Hono's html helper", () => {
     const page = String(uploadResultPage({
       url: 'https://worker.example/api/gpx/x"><script>alert(1)</script>',
-      delete_url: "https://worker.example/delete?key=<unsafe>",
+      delete_key: "<unsafe>",
     }));
 
     expect(page).not.toContain("<script>alert(1)</script>");
@@ -90,7 +90,7 @@ describe("Hono migration compatibility", () => {
     const uploadResponse = await upload(app, env);
     const result = await uploadResponse.json();
 
-    expect(Object.keys(result).sort()).toEqual(["delete_url", "id", "url"]);
+    expect(Object.keys(result).sort()).toEqual(["delete_key", "id", "url"]);
     expect(result.url).toBe(`https://worker.example/api/gpx/${result.id}`);
     expect(env.GPX_STORE.lastPutOptions).toEqual({ expirationTtl: 86400 });
     expect(env.entries.get(result.id)).toMatchObject({
@@ -108,7 +108,7 @@ describe("Hono migration compatibility", () => {
 
     const deleted = await app.fetch(new Request(result.url, {
       method: "DELETE",
-      headers: { "X-Delete-Key": new URL(result.delete_url).searchParams.get("key") },
+      headers: { "X-Delete-Key": result.delete_key },
     }), env);
     expect(await deleted.json()).toEqual({ deleted: true });
   });
@@ -190,7 +190,7 @@ describe("Hono migration compatibility", () => {
     const app = createApp();
     const env = createEnv();
     const result = await (await upload(app, env)).json();
-    const confirmation = await app.fetch(new Request(result.delete_url), env);
+    const confirmation = await app.fetch(new Request(`https://worker.example/gpx/${result.id}/delete?key=${result.delete_key}`), env);
     expect(confirmation.status).toBe(200);
     expect(await confirmation.text()).toContain("This operation cannot be undone.");
 

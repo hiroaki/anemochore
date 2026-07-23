@@ -1,5 +1,5 @@
 import { UploadError } from "../errors/upload-error.js";
-import { createDeleteUrl, createGpxUrl, createViewerUrl } from "../utils/share-urls.js";
+import { createGpxUrl, createViewerUrl } from "../utils/share-urls.js";
 import { MAX_UPLOAD_BYTES, validateGeodata } from "../validators/geodata.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
@@ -29,7 +29,7 @@ export function createGeodataService({ storage, viewerUrl }) {
       return {
         id,
         url: gpxUrl,
-        delete_url: createDeleteUrl(request, id, deleteKey), // TODO: remove delete_url from response
+        delete_key: deleteKey,
       };
     },
 

@@ -27,11 +27,9 @@ ${result.url}
 </p>
 
 <p>
-Delete URL:
+Delete key:
 <br>
-<a href="${result.delete_url}">
-${result.delete_url}
-</a>
+<code>${result.delete_key}</code>
 </p>
 `);
 }
