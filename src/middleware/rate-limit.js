@@ -29,3 +29,33 @@ export async function uploadRateLimit(c, next) {
   }
   await next();
 }
+
+export async function deleteRateLimit(c, next) {
+  const ip =
+    c.req.header("CF-Connecting-IP") ??
+    c.req.header("X-Forwarded-For") ??
+    "unknown";
+
+  const limiter = c.env.DELETE_RATE_LIMITER;
+  if (!limiter) {
+    throw new Error(
+      "DELETE_RATE_LIMITER binding is not configured."
+    );
+  }
+
+  const { success } = await limiter.limit({
+    key: ip,
+  });
+
+  if (!success) {
+    if (c.req.path.startsWith("/api/")) {
+      return apiJson(c, { error: "rate limit exceeded" }, 429);
+    }
+
+    return c.text(
+      "Too many delete requests. Please wait a minute and try again.",
+      429
+    );
+  }
+  await next();
+}
