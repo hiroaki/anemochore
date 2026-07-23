@@ -13,9 +13,9 @@ export function createApp() {
 
   app.use("*", applySecurityHeaders);
   app.use("*", handlePreflight);
-  app.use("*", attachServices);
   app.use("/api/upload", uploadRateLimit);
   app.use("/upload", uploadRateLimit);
+  app.use("*", attachServices);
   app.route("/", browserRoutes);
   app.route("/", apiRoutes);
   app.notFound((c) => c.text("Not Found", 404));
