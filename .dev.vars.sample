@@ -1,3 +1,2 @@
 # Optional local override for the viewer URL.
 # Leave this unset when the value in wrangler.jsonc is sufficient.
-VIEWER_URL="https://hiroaki.github.io/Tilia/samples/viewer/index.html"

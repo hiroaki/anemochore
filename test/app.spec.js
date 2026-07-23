@@ -8,7 +8,6 @@ const validGpx = "<?xml version=\"1.0\"?><gpx><trk><name>test</name></trk></gpx>
 function createEnv() {
   const entries = new Map();
   const env = {
-    VIEWER_URL: "https://viewer.example/?existing=value",
     GPX_STORE: {
       async put(key, value, options) {
         entries.set(key, JSON.parse(value));
@@ -46,7 +45,6 @@ describe("Hono migration compatibility", () => {
   it("escapes dynamic HTML values through Hono's html helper", () => {
     const page = String(uploadResultPage({
       url: 'https://worker.example/api/gpx/x"><script>alert(1)</script>',
-      viewer_url: null,
       delete_url: "https://worker.example/delete?key=<unsafe>",
     }));
 
@@ -92,9 +90,8 @@ describe("Hono migration compatibility", () => {
     const uploadResponse = await upload(app, env);
     const result = await uploadResponse.json();
 
-    expect(Object.keys(result).sort()).toEqual(["delete_url", "id", "url", "viewer_url"]);
+    expect(Object.keys(result).sort()).toEqual(["delete_url", "id", "url"]);
     expect(result.url).toBe(`https://worker.example/api/gpx/${result.id}`);
-    expect(result.viewer_url).toBe(`https://viewer.example/?existing=value&gpx=${encodeURIComponent(result.url)}`);
     expect(env.GPX_STORE.lastPutOptions).toEqual({ expirationTtl: 86400 });
     expect(env.entries.get(result.id)).toMatchObject({
       format: "gpx",

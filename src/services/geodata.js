@@ -29,8 +29,7 @@ export function createGeodataService({ storage, viewerUrl }) {
       return {
         id,
         url: gpxUrl,
-        viewer_url: createViewerUrl(viewerUrl, gpxUrl),
-        delete_url: createDeleteUrl(request, id, deleteKey),
+        delete_url: createDeleteUrl(request, id, deleteKey), // TODO: remove delete_url from response
       };
     },
 

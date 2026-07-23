@@ -25,8 +25,5 @@
         "period": 60
       }
     }
-  ],
-  "vars": {
-    "VIEWER_URL": ""
-  }
+  ]
 }

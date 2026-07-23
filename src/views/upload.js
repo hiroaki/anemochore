@@ -26,16 +26,6 @@ ${result.url}
 </a>
 </p>
 
-${result.viewer_url ? html`
-<p>
-View:
-<br>
-<a href="${result.viewer_url}">
-${result.viewer_url}
-</a>
-</p>
-` : ""}
-
 <p>
 Delete URL:
 <br>
