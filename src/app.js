@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { csrf } from "hono/csrf";
 import { handlePreflight } from "./middleware/cors.js";
 import { applySecurityHeaders } from "./middleware/security-headers.js";
 import { attachServices } from "./middleware/services.js";
@@ -7,6 +8,7 @@ import { browserRoutes } from "./routes/browser.js";
 import { apiRoutes } from "./routes/api.js";
 import { UploadError } from "./errors/upload-error.js";
 import { apiJson } from "./utils/responses.js";
+import { apiAuth } from "./middleware/api-auth.js";
 
 export function createApp() {
   const app = new Hono();
@@ -14,20 +16,23 @@ export function createApp() {
   app.use("*", applySecurityHeaders);
   app.use("*", handlePreflight);
 
-  app.use("/api/upload", uploadRateLimit);
-  app.use("/upload", uploadRateLimit);
-
-  app.use("/api/gpx/:id", async (c, next) => {
-    if (c.req.method === "DELETE") {
-      return deleteRateLimit(c, next);
-    }
-    return next();
-  });
+  app.use("/upload", uploadRateLimit, csrf());
   app.use("/gpx/:id/delete", async (c, next) => {
-    if (c.req.method === "POST") {
-      return deleteRateLimit(c, next);
+    if (c.req.method !== "POST") {
+      return next();
     }
-    return next();
+    await csrf()(c, async () => {
+      return deleteRateLimit(c, next);
+    });
+  });
+  app.use("/api/upload", uploadRateLimit, apiAuth);
+  app.use("/api/gpx/:id", async (c, next) => {
+    if (c.req.method !== "DELETE") {
+      return next();
+    }
+    await apiAuth(c, async () => {
+      return deleteRateLimit(c, next);
+    });
   });
 
   app.use("*", attachServices);

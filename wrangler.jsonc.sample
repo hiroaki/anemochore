@@ -33,5 +33,8 @@
         "period": 60
       }
     }
-  ]
+  ],
+  "secrets": {
+    "required": ["ANEMOCHORE_API_KEYS"]
+  }
 }

@@ -4,10 +4,12 @@ import worker from "../src/index.js";
 import { uploadResultPage } from "../src/views/upload.js";
 
 const validGpx = "<?xml version=\"1.0\"?><gpx><trk><name>test</name></trk></gpx>";
+const apiToken = "test-api-token";
 
 function createEnv() {
   const entries = new Map();
   const env = {
+    ANEMOCHORE_API_KEYS: apiToken,
     GPX_STORE: {
       async put(key, value, options) {
         entries.set(key, JSON.parse(value));
@@ -25,6 +27,11 @@ function createEnv() {
       async limit() {
         return { success: true };
       }
+    },
+    DELETE_RATE_LIMITER: {
+      async limit() {
+        return { success: true };
+      }
     }
   };
 
@@ -37,6 +44,9 @@ async function upload(app, env) {
   formData.set("file", new File([validGpx], "route.gpx", { type: "application/gpx+xml" }));
   return app.fetch(new Request("https://worker.example/api/upload", {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+    },
     body: formData,
   }), env);
 }
@@ -108,7 +118,10 @@ describe("Hono migration compatibility", () => {
 
     const deleted = await app.fetch(new Request(result.url, {
       method: "DELETE",
-      headers: { "X-Delete-Key": result.delete_key },
+      headers: {
+        "X-Delete-Key": result.delete_key,
+        Authorization: `Bearer ${apiToken}`,
+      },
     }), env);
     expect(await deleted.json()).toEqual({ deleted: true });
   });
@@ -121,6 +134,9 @@ describe("Hono migration compatibility", () => {
 
     const invalidResponse = await app.fetch(new Request("https://worker.example/api/upload", {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+      },
       body: invalid,
     }), env);
     expect(invalidResponse.status).toBe(400);
@@ -128,7 +144,10 @@ describe("Hono migration compatibility", () => {
 
     const tooLarge = await app.fetch(new Request("https://worker.example/api/upload", {
       method: "POST",
-      headers: { "Content-Length": String(2 * 1024 * 1024 + 1) },
+      headers: {
+        "Content-Length": String(2 * 1024 * 1024 + 1),
+        Authorization: `Bearer ${apiToken}`,
+      },
       body: new FormData(),
     }), env);
     expect(await tooLarge.json()).toEqual({ error: "file too large" });
@@ -143,6 +162,9 @@ describe("Hono migration compatibility", () => {
       formData.set("file", new File([content], "invalid.gpx"));
       const response = await app.fetch(new Request("https://worker.example/api/upload", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+        },
         body: formData,
       }), env);
 
@@ -178,6 +200,9 @@ describe("Hono migration compatibility", () => {
     formData.set("file", new File(["<gpx></gpx>"], "invalid.gpx"));
     const response = await createApp().fetch(new Request("https://worker.example/upload", {
       method: "POST",
+      headers: {
+        Origin: "https://worker.example",
+      },
       body: formData,
     }), createEnv());
 
