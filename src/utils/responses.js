@@ -7,3 +7,10 @@ export function apiJson(c, body, status = 200) {
 export function html(c, body) {
   return c.body(String(body), 200, { "Content-Type": "text/html; charset=utf-8" });
 }
+
+export function respondError(c, message, status) {
+  if (c.req.path.startsWith("/api/")) {
+    return apiJson(c, { error: message }, status);
+  }
+  return c.text(`Error: ${message}`, status);
+}

@@ -208,7 +208,7 @@ describe("Hono migration compatibility", () => {
 
     expect(response.status).toBe(400);
     expect(response.headers.get("Content-Type")).toBe("text/plain; charset=UTF-8");
-    expect(await response.text()).toBe("Upload failed: invalid GPX file");
+    expect(await response.text()).toBe("Error: invalid GPX file");
   });
 
   it("shows the confirmation page and rejects an invalid key", async () => {
