@@ -10,9 +10,36 @@ import { apiRoutes } from "./routes/api.js";
 import { UploadError } from "./errors/upload-error.js";
 import { respondError } from "./utils/responses.js";
 import { apiAuth } from "./middleware/api-auth.js";
+import { emitAuditEvent, resultFromStatus } from "./utils/audit.js";
 
 export function createApp() {
   const app = new Hono();
+
+  app.use("*", async (c, next) => {
+    const hasRequestId = c.req.header("X-Request-Id") ?? c.req.header("x-request-id");
+    const isBrowserRoute = !c.req.path.startsWith("/api");
+    if (isBrowserRoute && !hasRequestId) {
+      c.set("generatedRequestId", crypto.randomUUID());
+    }
+
+    emitAuditEvent(c, "request_received", { result: "success" });
+
+    try {
+      await next();
+      const responseStatus = c.res?.status ?? 200;
+      emitAuditEvent(c, "response_sent", {
+        result: resultFromStatus(responseStatus),
+        status: responseStatus,
+      });
+    } catch (error) {
+      const status = error instanceof HTTPException ? error.status : 500;
+      emitAuditEvent(c, "response_sent", {
+        result: resultFromStatus(status),
+        status,
+      });
+      throw error;
+    }
+  });
 
   app.use("*", applySecurityHeaders);
   app.use("*", handlePreflight);

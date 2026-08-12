@@ -3,6 +3,7 @@ import { apiCorsHeaders } from "../middleware/cors.js";
 import { apiJson } from "../utils/responses.js";
 import { uploadRateLimit, deleteRateLimit } from "../middleware/rate-limit.js";
 import { apiAuth } from "../middleware/api-auth.js";
+import { emitAuditEvent } from "../utils/audit.js";
 
 export const apiRoutes = new Hono();
 
@@ -20,18 +21,74 @@ apiRoutes.use("/gpx/:id", async (c, next) => {
 apiRoutes.get("/health", (c) => apiJson(c, { status: "ok" }));
 
 // Upload endpoint
-apiRoutes.post("/upload", async (c) => apiJson(
-  c,
-  await c.get("geodata").uploadGpx(c.req.raw),
-));
+apiRoutes.post("/upload", async (c) => {
+  emitAuditEvent(c, "upload_received", { result: "success", entrypoint: "api" });
+
+  let result;
+  try {
+    result = await c.get("geodata").uploadGpx(c.req.raw);
+  } catch (error) {
+    emitAuditEvent(c, "kv_stored", {
+      result: "failure",
+      failure_reason: "kv_write_failed",
+      error_message: error?.message ?? "unknown error",
+      entrypoint: "api",
+    });
+    throw error;
+  }
+
+  emitAuditEvent(c, "kv_stored", {
+    result: "success",
+    status: 200,
+    gpx_id: result.id,
+    entrypoint: "api",
+  });
+
+  return apiJson(c, result);
+});
 
 // Get GPX data by ID
 apiRoutes.get("/gpx/:id", async (c) => {
   const id = c.req.param("id");
   if (!/^[a-zA-Z0-9-]+$/.test(id)) return c.text("Not Found", 404);
 
-  const data = await c.get("geodata").get(id);
-  if (!data) return apiJson(c, { error: "Not found" }, 404);
+  emitAuditEvent(c, "gpx_retrieval_requested", {
+    result: "success",
+    gpx_id: id,
+    entrypoint: "api",
+  });
+
+  let data;
+  try {
+    data = await c.get("geodata").get(id);
+  } catch (error) {
+    emitAuditEvent(c, "kv_fetched", {
+      result: "failure",
+      gpx_id: id,
+      failure_reason: "kv_read_failed",
+      error_message: error?.message ?? "unknown error",
+      entrypoint: "api",
+    });
+    throw error;
+  }
+
+  if (!data) {
+    emitAuditEvent(c, "kv_fetched", {
+      result: "failure",
+      status: 404,
+      gpx_id: id,
+      failure_reason: "kv_not_found",
+      entrypoint: "api",
+    });
+    return apiJson(c, { error: "Not found" }, 404);
+  }
+
+  emitAuditEvent(c, "kv_fetched", {
+    result: "success",
+    status: 200,
+    gpx_id: id,
+    entrypoint: "api",
+  });
 
   return c.body(data.content, 200, apiCorsHeaders({
     "Content-Type": data.content_type || "application/gpx+xml; charset=utf-8",
@@ -42,15 +99,56 @@ apiRoutes.get("/gpx/:id", async (c) => {
 apiRoutes.delete("/gpx/:id", async (c) => {
   const id = c.req.param("id");
   const geodata = c.get("geodata");
+
+  emitAuditEvent(c, "gpx_deletion_requested", {
+    result: "success",
+    gpx_id: id,
+    entrypoint: "api",
+  });
+
   const data = await geodata.get(id);
 
-  if (!data) return apiJson(c, { error: "Not found" }, 404);
+  if (!data) {
+    emitAuditEvent(c, "kv_deleted", {
+      result: "failure",
+      status: 404,
+      gpx_id: id,
+      failure_reason: "kv_not_found",
+      entrypoint: "api",
+    });
+    return apiJson(c, { error: "Not found" }, 404);
+  }
 
   const deleteKey = c.req.header("X-Delete-Key");
   if (!deleteKey || deleteKey !== data.delete_key) {
+    emitAuditEvent(c, "gpx_deletion_rejected", {
+      result: "failure",
+      status: 403,
+      gpx_id: id,
+      failure_reason: "invalid_delete_key",
+      entrypoint: "api",
+    });
     return apiJson(c, { error: "invalid delete key" }, 403);
   }
 
-  await geodata.delete(id);
+  try {
+    await geodata.delete(id);
+  } catch (error) {
+    emitAuditEvent(c, "kv_deleted", {
+      result: "failure",
+      gpx_id: id,
+      failure_reason: "kv_delete_failed",
+      error_message: error?.message ?? "unknown error",
+      entrypoint: "api",
+    });
+    throw error;
+  }
+
+  emitAuditEvent(c, "kv_deleted", {
+    result: "success",
+    status: 200,
+    gpx_id: id,
+    entrypoint: "api",
+  });
   return apiJson(c, { deleted: true });
 });

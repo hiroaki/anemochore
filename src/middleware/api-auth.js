@@ -1,3 +1,5 @@
+import { emitAuditEvent } from "../utils/audit.js";
+
 // TODO: Consider implementing token expiration,
 // rotation, and a managed API key lifecycle.
 export function apiAuth(c, next) {
@@ -6,6 +8,11 @@ export function apiAuth(c, next) {
   const authorization = c.req.header("Authorization");
 
   if (!configuredKeys) {
+    emitAuditEvent(c, "api_key_configuration_error", {
+      result: "failure",
+      status: 500,
+      failure_reason: "api_key_not_configured",
+    });
     return c.json({ error: "API key is not configured" }, 500);
   }
 
@@ -22,6 +29,11 @@ export function apiAuth(c, next) {
     }
   }
   if (!isValid) {
+    emitAuditEvent(c, "api_key_rejected", {
+      result: "failure",
+      status: 401,
+      failure_reason: "invalid_api_key",
+    });
     return c.json({ error: "Unauthorized" }, 401);
   }
 
