@@ -150,7 +150,8 @@ npm test
 ## デプロイ
 
 ```bash
-npm run deploy
+npm run deploy:staging
+npm run deploy:production
 ```
 
 ## API 仕様

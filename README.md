@@ -150,7 +150,8 @@ npm test
 ## Deployment
 
 ```bash
-npm run deploy
+npm run deploy:staging
+npm run deploy:production
 ```
 
 ## API Specification
