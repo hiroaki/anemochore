@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "anemochore",
+  "name": "anemochore-development",
   "main": "src/index.js",
   "compatibility_date": "2026-07-20",
   "observability": {
@@ -13,7 +13,6 @@
   "kv_namespaces": [
     {
       "binding": "GPX_STORE",
-      "id": "<REPLACE_WITH_YOUR_KV_NAMESPACE_ID>"
     }
   ],
   "ratelimits": [
@@ -35,6 +34,75 @@
     }
   ],
   "secrets": {
-    "required": ["ANEMOCHORE_API_KEYS"]
+    "required": [
+      "ANEMOCHORE_API_KEYS"
+    ]
+  },
+  "env": {
+    "staging": {
+      "name": "anemochore-staging",
+      "workers_dev": true,
+      "kv_namespaces": [
+        {
+          "binding": "GPX_STORE",
+          "id": "<STAGING_KV_NAMESPACE_ID>"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "UPLOAD_RATE_LIMITER",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "DELETE_RATE_LIMITER",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        }
+      ],
+      "secrets": {
+        "required": [
+          "ANEMOCHORE_API_KEYS"
+        ]
+      }
+    },
+    "production": {
+      "name": "anemochore",
+      "kv_namespaces": [
+        {
+          "binding": "GPX_STORE",
+          "id": "<PRODUCTION_KV_NAMESPACE_ID>"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "UPLOAD_RATE_LIMITER",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "DELETE_RATE_LIMITER",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        }
+      ],
+      "secrets": {
+        "required": [
+          "ANEMOCHORE_API_KEYS"
+        ]
+      }
+    }
   }
 }
