@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import worker from "../src/index.js";
-import { uploadResultPage } from "../src/views/upload.js";
 
 const validGpx = "<?xml version=\"1.0\"?><gpx><trk><name>test</name></trk></gpx>";
 const apiToken = "test-api-token";
@@ -70,17 +69,6 @@ function parseAuditLogs(logCalls) {
 }
 
 describe("Hono migration compatibility", () => {
-  it("escapes dynamic HTML values through Hono's html helper", () => {
-    const page = String(uploadResultPage({
-      url: 'https://worker.example/api/gpx/x"><script>alert(1)</script>',
-      delete_key: "<unsafe>",
-    }));
-
-    expect(page).not.toContain("<script>alert(1)</script>");
-    expect(page).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
-    expect(page).toContain("&lt;unsafe&gt;");
-  });
-
   it("emits structured audit logs across upload, retrieval, and delete flows", async () => {
     const app = createApp();
     const env = createEnv();
@@ -245,39 +233,6 @@ describe("Hono migration compatibility", () => {
     }
   });
 
-  it("generates a browser request ID and reuses it across that request's audit events", async () => {
-    const app = createApp();
-    const env = createEnv();
-    const logCalls = [];
-    const originalLog = console.log;
-    console.log = (...args) => logCalls.push(args);
-
-    try {
-      const response = await app.fetch(new Request("https://worker.example/upload", {
-        method: "POST",
-        headers: {
-          Origin: "https://worker.example",
-          "CF-Connecting-IP": "198.51.100.42",
-        },
-        body: (() => {
-          const formData = new FormData();
-          formData.set("file", new File([validGpx], "browser.gpx", { type: "application/gpx+xml" }));
-          return formData;
-        })(),
-      }), env);
-
-      expect(response.status).toBe(200);
-      const auditEvents = parseAuditLogs(logCalls);
-      const browserUploadEvents = auditEvents.filter((entry) => entry.path === "/upload");
-      const requestIds = new Set(browserUploadEvents.map((entry) => entry.request_id).filter(Boolean));
-      expect(requestIds.size).toBe(1);
-      expect(browserUploadEvents.every((entry) => entry.request_id && entry.request_id === [...requestIds][0])).toBe(true);
-      expect(browserUploadEvents.every((entry) => entry.client_ip === "198.51.100.42")).toBe(true);
-    } finally {
-      console.log = originalLog;
-    }
-  });
-
   it("serves requests through the module-level Worker app", async () => {
     const response = await worker.fetch(
       new Request("https://worker.example/api/health"),
@@ -410,86 +365,4 @@ describe("Hono migration compatibility", () => {
     expect(await legacyResponse.text()).toBe(validGpx);
   });
 
-  it("uses the same upload error message for the browser form", async () => {
-    const formData = new FormData();
-    formData.set("file", new File(["<gpx></gpx>"], "invalid.gpx"));
-    const response = await createApp().fetch(new Request("https://worker.example/upload", {
-      method: "POST",
-      headers: {
-        Origin: "https://worker.example",
-      },
-      body: formData,
-    }), createEnv());
-
-    expect(response.status).toBe(400);
-    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=UTF-8");
-    expect(await response.text()).toBe("Error: invalid GPX file");
-  });
-
-  it("emits delete_confirmation_viewed for the confirmation page but keeps gpx_deletion_requested for the actual post-delete", async () => {
-    const app = createApp();
-    const env = createEnv();
-    const logCalls = [];
-    const originalLog = console.log;
-    console.log = (...args) => logCalls.push(args);
-
-    try {
-      const uploadResponse = await app.fetch(new Request("https://worker.example/upload", {
-        method: "POST",
-        headers: {
-          Origin: "https://worker.example",
-          "CF-Connecting-IP": "198.51.100.77",
-        },
-        body: (() => {
-          const formData = new FormData();
-          formData.set("file", new File([validGpx], "browser.gpx", { type: "application/gpx+xml" }));
-          return formData;
-        })(),
-      }), env);
-      expect(uploadResponse.status).toBe(200);
-
-      const resourceId = [...env.entries.keys()][0];
-      const deleteKey = env.entries.get(resourceId).delete_key;
-      const confirmation = await app.fetch(new Request(`https://worker.example/gpx/${resourceId}/delete?key=${deleteKey}`, {
-        headers: {
-          "CF-Connecting-IP": "198.51.100.77",
-        },
-      }), env);
-      expect(confirmation.status).toBe(200);
-
-      const auditEvents = parseAuditLogs(logCalls);
-      expect(auditEvents.some((entry) => entry.event === "delete_confirmation_viewed" && entry.gpx_id === resourceId)).toBe(true);
-      expect(auditEvents.some((entry) => entry.event === "gpx_deletion_requested" && entry.gpx_id === resourceId)).toBe(false);
-
-      const formData = new FormData();
-      formData.set("key", deleteKey);
-      const deletion = await app.fetch(new Request(`https://worker.example/gpx/${resourceId}/delete`, {
-        method: "POST",
-        headers: {
-          Origin: "https://worker.example",
-          "CF-Connecting-IP": "198.51.100.77",
-        },
-        body: formData,
-      }), env);
-      expect(deletion.status).toBe(200);
-
-      const laterAuditEvents = parseAuditLogs(logCalls);
-      expect(laterAuditEvents.some((entry) => entry.event === "gpx_deletion_requested" && entry.gpx_id === resourceId)).toBe(true);
-    } finally {
-      console.log = originalLog;
-    }
-  });
-
-  it("shows the confirmation page and rejects an invalid key", async () => {
-    const app = createApp();
-    const env = createEnv();
-    const result = await (await upload(app, env)).json();
-    const confirmation = await app.fetch(new Request(`https://worker.example/gpx/${result.id}/delete?key=${result.delete_key}`), env);
-    expect(confirmation.status).toBe(200);
-    expect(await confirmation.text()).toContain("This operation cannot be undone.");
-
-    const rejected = await app.fetch(new Request(`https://worker.example/gpx/${result.id}/delete?key=wrong`), env);
-    expect(rejected.status).toBe(403);
-    expect(await rejected.text()).toBe("Invalid delete key");
-  });
 });

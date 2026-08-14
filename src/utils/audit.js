@@ -1,19 +1,11 @@
 export function buildAuditMetadata(c, extra = {}) {
-  const requestId =
-    c.req.header("X-Request-Id") ??
-    c.req.header("x-request-id") ??
-    c.get("generatedRequestId") ??
-    null;
+  const requestId = c.req.header("X-Request-Id") ?? c.req.header("x-request-id") ?? null;
   const callerIp =
     c.req.header("CF-Connecting-IP") ??
     c.req.header("cf-connecting-ip") ??
     null;
-  // Browser routes are direct callers, so the connected IP is the end user IP when no intermediary supplies X-Client-IP.
-  const clientIp =
-    c.req.header("X-Client-IP") ??
-    c.req.header("x-client-ip") ??
-    callerIp ??
-    null;
+  // client_ip reflects only what Xylem reports; no fallback, so a missing header stays visible.
+  const clientIp = c.req.header("X-Client-IP") ?? c.req.header("x-client-ip") ?? null;
 
   return {
     timestamp: new Date().toISOString(),
@@ -36,7 +28,6 @@ export function emitAuditEvent(c, event, payload = {}) {
     ...(payload.gpx_id !== undefined ? { gpx_id: payload.gpx_id } : {}),
     ...(payload.failure_reason !== undefined ? { failure_reason: payload.failure_reason } : {}),
     ...(payload.error_message !== undefined ? { error_message: payload.error_message } : {}),
-    ...(payload.entrypoint !== undefined ? { entrypoint: payload.entrypoint } : {}),
   };
 
   console.log(JSON.stringify(entry));

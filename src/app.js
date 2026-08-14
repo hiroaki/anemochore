@@ -1,11 +1,9 @@
 import { Hono } from "hono";
-import { csrf } from "hono/csrf";
 import { HTTPException } from "hono/http-exception";
 import { handlePreflight } from "./middleware/cors.js";
 import { applySecurityHeaders } from "./middleware/security-headers.js";
 import { attachServices } from "./middleware/services.js";
 import { uploadRateLimit, deleteRateLimit } from "./middleware/rate-limit.js";
-import { browserRoutes } from "./routes/browser.js";
 import { apiRoutes } from "./routes/api.js";
 import { UploadError } from "./errors/upload-error.js";
 import { respondError } from "./utils/responses.js";
@@ -16,12 +14,6 @@ export function createApp() {
   const app = new Hono();
 
   app.use("*", async (c, next) => {
-    const hasRequestId = c.req.header("X-Request-Id") ?? c.req.header("x-request-id");
-    const isBrowserRoute = !c.req.path.startsWith("/api");
-    if (isBrowserRoute && !hasRequestId) {
-      c.set("generatedRequestId", crypto.randomUUID());
-    }
-
     emitAuditEvent(c, "request_received", { result: "success" });
 
     try {
@@ -45,7 +37,6 @@ export function createApp() {
   app.use("*", handlePreflight);
   app.use("*", attachServices);
 
-  app.route("/", browserRoutes);
   app.route("/api", apiRoutes);
 
   app.notFound((c) => {

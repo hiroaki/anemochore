@@ -22,7 +22,7 @@ apiRoutes.get("/health", (c) => apiJson(c, { status: "ok" }));
 
 // Upload endpoint
 apiRoutes.post("/upload", async (c) => {
-  emitAuditEvent(c, "upload_received", { result: "success", entrypoint: "api" });
+  emitAuditEvent(c, "upload_received", { result: "success" });
 
   let result;
   try {
@@ -32,7 +32,6 @@ apiRoutes.post("/upload", async (c) => {
       result: "failure",
       failure_reason: "kv_write_failed",
       error_message: error?.message ?? "unknown error",
-      entrypoint: "api",
     });
     throw error;
   }
@@ -41,7 +40,6 @@ apiRoutes.post("/upload", async (c) => {
     result: "success",
     status: 200,
     gpx_id: result.id,
-    entrypoint: "api",
   });
 
   return apiJson(c, result);
@@ -55,7 +53,6 @@ apiRoutes.get("/gpx/:id", async (c) => {
   emitAuditEvent(c, "gpx_retrieval_requested", {
     result: "success",
     gpx_id: id,
-    entrypoint: "api",
   });
 
   let data;
@@ -67,7 +64,6 @@ apiRoutes.get("/gpx/:id", async (c) => {
       gpx_id: id,
       failure_reason: "kv_read_failed",
       error_message: error?.message ?? "unknown error",
-      entrypoint: "api",
     });
     throw error;
   }
@@ -78,7 +74,6 @@ apiRoutes.get("/gpx/:id", async (c) => {
       status: 404,
       gpx_id: id,
       failure_reason: "kv_not_found",
-      entrypoint: "api",
     });
     return apiJson(c, { error: "Not found" }, 404);
   }
@@ -87,7 +82,6 @@ apiRoutes.get("/gpx/:id", async (c) => {
     result: "success",
     status: 200,
     gpx_id: id,
-    entrypoint: "api",
   });
 
   return c.body(data.content, 200, apiCorsHeaders({
@@ -103,7 +97,6 @@ apiRoutes.delete("/gpx/:id", async (c) => {
   emitAuditEvent(c, "gpx_deletion_requested", {
     result: "success",
     gpx_id: id,
-    entrypoint: "api",
   });
 
   const data = await geodata.get(id);
@@ -114,7 +107,6 @@ apiRoutes.delete("/gpx/:id", async (c) => {
       status: 404,
       gpx_id: id,
       failure_reason: "kv_not_found",
-      entrypoint: "api",
     });
     return apiJson(c, { error: "Not found" }, 404);
   }
@@ -126,7 +118,6 @@ apiRoutes.delete("/gpx/:id", async (c) => {
       status: 403,
       gpx_id: id,
       failure_reason: "invalid_delete_key",
-      entrypoint: "api",
     });
     return apiJson(c, { error: "invalid delete key" }, 403);
   }
@@ -139,7 +130,6 @@ apiRoutes.delete("/gpx/:id", async (c) => {
       gpx_id: id,
       failure_reason: "kv_delete_failed",
       error_message: error?.message ?? "unknown error",
-      entrypoint: "api",
     });
     throw error;
   }
@@ -148,7 +138,6 @@ apiRoutes.delete("/gpx/:id", async (c) => {
     result: "success",
     status: 200,
     gpx_id: id,
-    entrypoint: "api",
   });
   return apiJson(c, { deleted: true });
 });
