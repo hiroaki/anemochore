@@ -1,5 +1,4 @@
 import { UploadError } from "../errors/upload-error.js";
-import { createGpxUrl, createViewerUrl } from "../utils/share-urls.js";
 import { MAX_UPLOAD_BYTES, validateGeodata } from "../validators/geodata.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
@@ -25,10 +24,8 @@ export function createGeodataService({ storage, viewerUrl }) {
         expirationTtl: EXPIRATION_SECONDS,
       });
 
-      const gpxUrl = createGpxUrl(request, id);
       return {
         id,
-        url: gpxUrl,
         delete_key: deleteKey,
       };
     },

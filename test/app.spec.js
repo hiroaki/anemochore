@@ -83,8 +83,9 @@ describe("Hono migration compatibility", () => {
         "X-Client-IP": "203.0.113.7",
       });
       const uploaded = await uploadResponse.json();
+      const gpxUrl = `https://worker.example/api/gpx/${uploaded.id}`;
 
-      const getResponse = await app.fetch(new Request(uploaded.url, {
+      const getResponse = await app.fetch(new Request(gpxUrl, {
         headers: {
           "X-Request-Id": requestId,
           "X-Client-IP": "203.0.113.7",
@@ -92,7 +93,7 @@ describe("Hono migration compatibility", () => {
       }), env);
       expect(getResponse.status).toBe(200);
 
-      const deleteResponse = await app.fetch(new Request(uploaded.url, {
+      const deleteResponse = await app.fetch(new Request(gpxUrl, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${apiToken}`,
@@ -264,14 +265,13 @@ describe("Hono migration compatibility", () => {
     expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type, X-Delete-Key");
   });
 
-  it("uploads, retrieves, and deletes a GPX with the original JSON fields", async () => {
+  it("uploads, retrieves, and deletes a GPX", async () => {
     const app = createApp();
     const env = createEnv();
     const uploadResponse = await upload(app, env);
     const result = await uploadResponse.json();
 
-    expect(Object.keys(result).sort()).toEqual(["delete_key", "id", "url"]);
-    expect(result.url).toBe(`https://worker.example/api/gpx/${result.id}`);
+    expect(Object.keys(result).sort()).toEqual(["delete_key", "id"]);
     expect(env.GPX_STORE.lastPutOptions).toEqual({ expirationTtl: 86400 });
     expect(env.entries.get(result.id)).toMatchObject({
       format: "gpx",
@@ -282,11 +282,12 @@ describe("Hono migration compatibility", () => {
     expect(env.entries.get(result.id).delete_key).toEqual(expect.any(String));
     expect(new Date(env.entries.get(result.id).created_at).toISOString()).toBe(env.entries.get(result.id).created_at);
 
-    const gpxResponse = await app.fetch(new Request(result.url), env);
+    const gpxUrl = `https://worker.example/api/gpx/${result.id}`;
+    const gpxResponse = await app.fetch(new Request(gpxUrl), env);
     expect(gpxResponse.headers.get("Content-Type")).toBe("application/gpx+xml; charset=utf-8");
     expect(await gpxResponse.text()).toBe(validGpx);
 
-    const deleted = await app.fetch(new Request(result.url, {
+    const deleted = await app.fetch(new Request(gpxUrl, {
       method: "DELETE",
       headers: {
         "X-Delete-Key": result.delete_key,
