@@ -1,25 +1,23 @@
 import { UploadError } from "../errors/upload-error.js";
-import { MAX_UPLOAD_BYTES, validateGeodata } from "../validators/geodata.js";
+import { MAX_PAYLOAD_BYTES, validateCanonicalGpxPayload } from "../validators/geodata.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
-const GPX_FORMAT = "gpx";
-const GPX_CONTENT_TYPE = "application/gpx+xml; charset=utf-8";
-const GPX_EXTENSION = "gpx";
+const CANONICAL_FORMAT = "canonical-geodata";
+const CANONICAL_CONTENT_TYPE = "application/json";
 
-export function createGeodataService({ storage, viewerUrl }) {
+export function createGeodataService({ storage }) {
   return {
-    async uploadGpx(request) {
-      const content = await readUploadedGpx(request);
+    async upload(request) {
+      const payload = await readCanonicalPayload(request);
       const id = crypto.randomUUID();
       const deleteKey = crypto.randomUUID();
 
       await storage.put(id, {
-        format: GPX_FORMAT,
-        content_type: GPX_CONTENT_TYPE,
-        extension: GPX_EXTENSION,
-        content,
+        format: CANONICAL_FORMAT,
+        content_type: CANONICAL_CONTENT_TYPE,
         delete_key: deleteKey,
         created_at: new Date().toISOString(),
+        content: payload,
       }, {
         expirationTtl: EXPIRATION_SECONDS,
       });
@@ -40,25 +38,28 @@ export function createGeodataService({ storage, viewerUrl }) {
   };
 }
 
-async function readUploadedGpx(request) {
+async function readCanonicalPayload(request) {
   const contentLength = request.headers.get("Content-Length");
-  if (contentLength && Number(contentLength) > MAX_UPLOAD_BYTES) {
-    throw new UploadError("file too large");
+  if (contentLength && Number(contentLength) > MAX_PAYLOAD_BYTES) {
+    throw new UploadError("payload too large");
   }
 
-  const formData = await request.formData();
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    throw new UploadError("file is required");
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    throw new UploadError("file too large");
+  const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_PAYLOAD_BYTES) {
+    throw new UploadError("payload too large");
   }
 
-  const content = await file.text();
-  if (!validateGeodata(GPX_FORMAT, content)) {
-    throw new UploadError("invalid GPX file");
+  let payload;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    throw new UploadError("invalid canonical geodata payload");
   }
 
-  return content;
+  if (!validateCanonicalGpxPayload(payload)) {
+    throw new UploadError("invalid canonical geodata payload");
+  }
+
+  return payload;
 }
+

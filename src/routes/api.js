@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { apiCorsHeaders } from "../middleware/cors.js";
 import { apiJson } from "../utils/responses.js";
 import { uploadRateLimit, deleteRateLimit } from "../middleware/rate-limit.js";
 import { apiAuth } from "../middleware/api-auth.js";
@@ -26,7 +25,7 @@ apiRoutes.post("/upload", async (c) => {
 
   let result;
   try {
-    result = await c.get("geodata").uploadGpx(c.req.raw);
+    result = await c.get("geodata").upload(c.req.raw);
   } catch (error) {
     emitAuditEvent(c, "kv_stored", {
       result: "failure",
@@ -68,7 +67,9 @@ apiRoutes.get("/gpx/:id", async (c) => {
     throw error;
   }
 
-  if (!data) {
+  // Defensive: treat records without a canonical `content` payload (missing,
+  // or from a pre-migration storage shape) as not found rather than crashing.
+  if (!data || typeof data.content !== "object" || data.content === null) {
     emitAuditEvent(c, "kv_fetched", {
       result: "failure",
       status: 404,
@@ -84,9 +85,9 @@ apiRoutes.get("/gpx/:id", async (c) => {
     gpx_id: id,
   });
 
-  return c.body(data.content, 200, apiCorsHeaders({
-    "Content-Type": data.content_type || "application/gpx+xml; charset=utf-8",
-  }));
+  // Only the canonical payload is ever returned — service metadata (delete_key,
+  // created_at, format, content_type) never leaves this response.
+  return apiJson(c, data.content);
 });
 
 // Delete GPX data by ID
@@ -101,7 +102,7 @@ apiRoutes.delete("/gpx/:id", async (c) => {
 
   const data = await geodata.get(id);
 
-  if (!data) {
+  if (!data || typeof data.delete_key !== "string") {
     emitAuditEvent(c, "kv_deleted", {
       result: "failure",
       status: 404,
