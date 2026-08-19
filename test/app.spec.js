@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import worker from "../src/index.js";
+import { hashDeleteKey } from "../src/utils/delete-key.js";
 
 const validCanonicalPayload = {
   schema_version: 1,
@@ -274,11 +275,12 @@ describe("canonical geodata storage", () => {
 
     const stored = env.entries.get(result.id);
     expect(Object.keys(stored).sort()).toEqual(
-      ["content", "content_type", "created_at", "delete_key", "format"],
+      ["content", "content_type", "created_at", "delete_key_hash", "format"],
     );
     expect(stored.format).toBe("canonical-geodata");
     expect(stored.content_type).toBe("application/json");
-    expect(stored.delete_key).toEqual(expect.any(String));
+    expect(stored.delete_key_hash).toBe(await hashDeleteKey(result.delete_key));
+    expect(stored).not.toHaveProperty("delete_key");
     expect(new Date(stored.created_at).toISOString()).toBe(stored.created_at);
     expect(stored.content).toEqual(validCanonicalPayload);
   });
@@ -303,7 +305,7 @@ describe("canonical geodata storage", () => {
     expect(serialized).not.toContain("canonical-geodata");
   });
 
-  it("deletes using the stored delete_key (service metadata) and rejects a mismatched key", async () => {
+  it("deletes using the returned delete_key and rejects a mismatched key", async () => {
     const app = createApp();
     const env = createEnv();
     const uploadResponse = await upload(app, env);
@@ -420,46 +422,40 @@ describe("canonical geodata storage", () => {
     expect(await response.json()).toEqual({ error: "payload too large" });
   });
 
-  it("returns 404 (not 500) from GET on a pre-migration or malformed KV record, while deletion by its stored delete_key still works", async () => {
+  it("returns 404 (not 500) from GET/DELETE when a KV record has no delete_key_hash", async () => {
     const app = createApp();
     const env = createEnv();
-    await env.GPX_STORE.put("legacy-gpx", JSON.stringify({
-      format: "gpx",
-      content_type: "application/gpx+xml; charset=utf-8",
-      content: "<gpx></gpx>",
-      delete_key: "legacy-key",
-    }));
 
-    const getResponse = await app.fetch(new Request("https://worker.example/api/gpx/legacy-gpx"), env);
-    expect(getResponse.status).toBe(404);
+    await env.GPX_STORE.put(
+      "no-delete-key",
+      JSON.stringify({
+        content: validCanonicalPayload,
+      }),
+    );
 
-    const deleteResponse = await app.fetch(new Request("https://worker.example/api/gpx/legacy-gpx", {
-      method: "DELETE",
-      headers: {
-        "X-Delete-Key": "legacy-key",
-        Authorization: `Bearer ${apiToken}`,
-      },
-    }), env);
-    expect(deleteResponse.status).toBe(200);
-  });
+    const getResponse = await app.fetch(
+      new Request(
+        "https://worker.example/api/gpx/no-delete-key",
+      ),
+      env,
+    );
 
-  it("returns 404 (not 500) from GET/DELETE when a KV record has no delete_key at all", async () => {
-    const app = createApp();
-    const env = createEnv();
-    await env.GPX_STORE.put("no-delete-key", JSON.stringify({
-      content: validCanonicalPayload,
-    }));
-
-    const getResponse = await app.fetch(new Request("https://worker.example/api/gpx/no-delete-key"), env);
     expect(getResponse.status).toBe(200);
 
-    const deleteResponse = await app.fetch(new Request("https://worker.example/api/gpx/no-delete-key", {
-      method: "DELETE",
-      headers: {
-        "X-Delete-Key": "anything",
-        Authorization: `Bearer ${apiToken}`,
-      },
-    }), env);
+    const deleteResponse = await app.fetch(
+      new Request(
+        "https://worker.example/api/gpx/no-delete-key",
+        {
+          method: "DELETE",
+          headers: {
+            "X-Delete-Key": "anything",
+            Authorization: `Bearer ${apiToken}`,
+          },
+        },
+      ),
+      env,
+    );
+
     expect(deleteResponse.status).toBe(404);
   });
 });

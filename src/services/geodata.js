@@ -1,5 +1,6 @@
 import { UploadError } from "../errors/upload-error.js";
 import { MAX_PAYLOAD_BYTES, validateCanonicalGpxPayload } from "../validators/geodata.js";
+import { hashDeleteKey, generateDeleteKey } from "../utils/delete-key.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
 const CANONICAL_FORMAT = "canonical-geodata";
@@ -10,12 +11,13 @@ export function createGeodataService({ storage }) {
     async upload(request) {
       const payload = await readCanonicalPayload(request);
       const id = crypto.randomUUID();
-      const deleteKey = crypto.randomUUID();
+      const deleteKey = generateDeleteKey();
+      const deleteKeyHash = await hashDeleteKey(deleteKey);
 
       await storage.put(id, {
         format: CANONICAL_FORMAT,
         content_type: CANONICAL_CONTENT_TYPE,
-        delete_key: deleteKey,
+        delete_key_hash: deleteKeyHash,
         created_at: new Date().toISOString(),
         content: payload,
       }, {

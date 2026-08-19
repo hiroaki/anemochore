@@ -3,6 +3,7 @@ import { apiJson } from "../utils/responses.js";
 import { uploadRateLimit, deleteRateLimit } from "../middleware/rate-limit.js";
 import { apiAuth } from "../middleware/api-auth.js";
 import { emitAuditEvent } from "../utils/audit.js";
+import { hashDeleteKey } from "../utils/delete-key.js";
 
 export const apiRoutes = new Hono();
 
@@ -102,7 +103,7 @@ apiRoutes.delete("/gpx/:id", async (c) => {
 
   const data = await geodata.get(id);
 
-  if (!data || typeof data.delete_key !== "string") {
+  if (!data || typeof data.delete_key_hash !== "string") {
     emitAuditEvent(c, "kv_deleted", {
       result: "failure",
       status: 404,
@@ -113,7 +114,9 @@ apiRoutes.delete("/gpx/:id", async (c) => {
   }
 
   const deleteKey = c.req.header("X-Delete-Key");
-  if (!deleteKey || deleteKey !== data.delete_key) {
+  const deleteKeyHash = await hashDeleteKey(deleteKey || "");
+
+  if (!deleteKey || deleteKeyHash !== data.delete_key_hash) {
     emitAuditEvent(c, "gpx_deletion_rejected", {
       result: "failure",
       status: 403,
