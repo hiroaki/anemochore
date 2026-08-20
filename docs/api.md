@@ -3,11 +3,31 @@
 
 ## Overview
 
-Anemochore is a lightweight API service for temporarily storing geographic data files and sharing them through URLs.
+Anemochore is a lightweight API service for temporarily storing canonical geodata and sharing it through URLs.
 
-Currently, Anemochore supports GPX files.
+Anemochore does not parse, validate, or convert GPX/GeoJSON/XML itself. It only accepts, stores, and returns a canonical JSON payload; parsing and normalization of user-supplied GPX/GeoJSON is entirely Xylem's responsibility. In practice, Anemochore's API is called by Xylem, not directly by browsers.
+
+Currently, the canonical payload's `data_type` is always `"gpx"`. GeoJSON support (`data_type: "geojson"`) is planned for a future phase.
 
 The service does not provide user accounts or ownership management. Uploaded data is treated as publicly accessible data during its lifetime.
+
+### Canonical geodata payload
+
+The canonical payload is the only body Anemochore ever reads or returns for `/api/upload` and `/api/gpx/:id`:
+
+```json
+{
+  "schema_version": 1,
+  "data_type": "gpx",
+  "data": {
+    "tracks": [],
+    "routes": [],
+    "waypoints": []
+  }
+}
+```
+
+Internally, Anemochore stores this payload alongside its own service metadata (`delete_key`, `created_at`, `format`, `content_type`) in a single KV record, but the canonical payload itself never contains service metadata, and service metadata is never returned from `GET /api/gpx/:id`.
 
 
 ## Authentication
@@ -36,14 +56,14 @@ The deletion key:
 - is generated randomly for each upload
 - must be treated as a secret
 - is only returned in the upload response
-- is not included in GPX retrieval responses
+- is not included in geodata retrieval responses (service metadata never appears in `GET /api/gpx/:id`)
 
 
 ## Upload API
 
 ### POST /api/upload
 
-Uploads a GPX file and creates a temporary shared resource.
+Accepts a canonical geodata payload and creates a temporary shared resource. The caller (Xylem) is responsible for having already parsed/validated/normalized the original GPX/GeoJSON; Anemochore performs only structural/defensive validation of the payload shape (required fields, types, array bounds, coordinate ranges, size/count limits) — it never parses GPX/XML.
 
 ### Authentication
 
@@ -57,18 +77,14 @@ Authorization: Bearer <token>
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| file | File | Yes | GPX file to upload. Request Content-Type must be `multipart/form-data`. |
-
-The original filename is not stored or returned.
-
-This is intentional to avoid exposing potentially sensitive information contained in filenames.
+| (body) | JSON | Yes | Canonical geodata payload. Request Content-Type must be `application/json`. |
 
 ### Response
 
 | Status Code | Message | Example |
 |---|---|---|
 | 200 OK | Upload succeeded | See success response below |
-| 400 Bad Request | Invalid request or invalid GPX file | `{ "error": "file too large" }` |
+| 400 Bad Request | Invalid or oversized canonical payload | `{ "error": "invalid canonical geodata payload" }` |
 | 401 Unauthorized | Missing or invalid Bearer token | `{ "error": "unauthorized" }` |
 | 429 Too Many Requests | Rate limit exceeded | `{ "error": "rate limit exceeded" }` |
 
@@ -77,62 +93,69 @@ Success response:
 ```json
 {
   "id": "abc123",
-  "url": "https://example.com/api/gpx/abc123",
   "delete_key": "xxxxxxxx"
 }
 ```
 
 | Field | Description |
 |---|---|
-| id | Unique identifier of the stored GPX data |
-| url | URL for retrieving the GPX data |
+| id | Unique identifier of the stored geodata |
 | delete_key | Secret key required for deletion |
 
+No other field (e.g. service metadata such as `created_at` or `format`) is ever included in this response.
 
 ### Limitations
 
 | Item | Value | Description |
 |---|---|---|
-| Maximum upload size | 2 MB | Larger files are rejected. |
+| Maximum payload size | 2 MB | Larger payloads are rejected. |
 | Storage lifetime | 24 hours | Data is automatically deleted after expiration. |
 | Rate limit | 10 requests / 60 seconds | Applied to upload requests. |
 
 ---
 
-## GPX Retrieval API
+## Geodata Retrieval API
 
 ### GET /api/gpx/:id
 
-Retrieves a stored GPX file.
+Retrieves stored canonical geodata.
 
 ### Request
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| id | Path parameter | Yes | Identifier of the stored GPX data. |
+| id | Path parameter | Yes | Identifier of the stored geodata. |
 
 ### Response
 
 | Status Code | Message | Example |
 |---|---|---|
-| 200 OK | GPX data returned | GPX XML document |
-| 404 Not Found | Resource does not exist or has expired | `{ "error": "not found" }` |
+| 200 OK | Canonical geodata returned | See success response below |
+| 404 Not Found | Resource does not exist, has expired, or is not in the current canonical shape | `{ "error": "Not found" }` |
 
 Success response:
 
 Content-Type:
 
 ```
-application/gpx+xml; charset=utf-8
+application/json
 ```
 
-Response body:
+Response body is exactly the canonical geodata payload — never the outer KV record, so `delete_key`/`created_at`/`format`/`content_type` are structurally impossible to leak here:
 
-```xml
-<gpx>
-...
-</gpx>
+```json
+{
+  "schema_version": 1,
+  "data_type": "gpx",
+  "data": {
+    "tracks": [],
+    "routes": [],
+    "waypoints": []
+  }
+}
 ```
+
+Converting this back into GPX/GeoJSON (or any other display format) is the caller's (Xylem's) responsibility, not Anemochore's.
 
 ### Limitations
 
@@ -146,7 +169,7 @@ Response body:
 
 ### DELETE /api/gpx/:id
 
-Deletes a stored GPX file.
+Deletes stored geodata.
 
 ### Authentication
 
@@ -160,8 +183,8 @@ Authorization: Bearer <token>
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| id | Path parameter | Yes | Identifier of the stored GPX data. |
-| X-Delete-Key | Header | Yes | Delete key issued when uploading the GPX file. |
+| id | Path parameter | Yes | Identifier of the stored geodata. |
+| X-Delete-Key | Header | Yes | Delete key issued when uploading the geodata. |
 
 ### Response
 
