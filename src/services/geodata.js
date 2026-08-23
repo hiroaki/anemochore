@@ -1,5 +1,5 @@
 import { UploadError } from "../errors/upload-error.js";
-import { MAX_PAYLOAD_BYTES, validateCanonicalGpxPayload } from "../validators/geodata.js";
+import { MAX_PAYLOAD_BYTES, validateCanonicalPayload } from "../validators/geodata.js";
 import { hashDeleteKey, generateDeleteKey } from "../utils/delete-key.js";
 
 const EXPIRATION_SECONDS = 60 * 60 * 24;
@@ -58,7 +58,7 @@ async function readCanonicalPayload(request) {
     throw new UploadError("invalid canonical geodata payload");
   }
 
-  if (!validateCanonicalGpxPayload(payload)) {
+  if (!validateCanonicalPayload(payload)) {
     throw new UploadError("invalid canonical geodata payload");
   }
 
