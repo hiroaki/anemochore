@@ -1,6 +1,6 @@
-// Anemochore validates only the canonical storage boundary; Xylem owns GPX
-// parsing, validation, normalization, and canonicalization.
-export const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024;
+// Keep below Cloudflare KV's maximum value size (25 MiB).
+// The margin accounts for the storage envelope and future metadata growth.
+export const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024;
 
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
