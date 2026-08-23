@@ -348,7 +348,7 @@ describe("canonical geodata storage", () => {
     expect(await response.json()).toEqual({ error: "invalid canonical geodata payload" });
   });
 
-  it("rejects a canonical payload with no tracks, routes, or waypoints", async () => {
+  it("accepts a canonical payload with empty GPX collections because Anemochore does not enforce GPX semantics", async () => {
     const app = createApp();
     const env = createEnv();
 
@@ -358,10 +358,10 @@ describe("canonical geodata storage", () => {
       data: { tracks: [], routes: [], waypoints: [] },
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
   });
 
-  it("rejects out-of-range coordinates", async () => {
+  it("accepts payloads without GPX semantic coordinate validation", async () => {
     const app = createApp();
     const env = createEnv();
 
@@ -371,20 +371,20 @@ describe("canonical geodata storage", () => {
       data: { tracks: [], routes: [], waypoints: [{ coordinates: [200, 2] }] },
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
   });
 
-  it("rejects a track with no segments", async () => {
+  it("accepts canonical payloads with empty nested GPX collections because Anemochore does not enforce GPX structure", async () => {
     const app = createApp();
     const env = createEnv();
 
     const response = await upload(app, env, {}, {
       schema_version: 1,
       data_type: "gpx",
-      data: { tracks: [{ segments: [] }], routes: [], waypoints: [] },
+      data: { tracks: [{ arbitrary: "canonical-data" }], routes: [], waypoints: [] },
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
   });
 
   it("rejects malformed JSON bodies", async () => {
@@ -416,6 +416,33 @@ describe("canonical geodata storage", () => {
         "Content-Length": String(2 * 1024 * 1024 + 1),
       },
       body: JSON.stringify(validCanonicalPayload),
+    }), env);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "payload too large" });
+  });
+
+  it("rejects a payload whose actual UTF-8 body size exceeds the limit even without a Content-Length header", async () => {
+    const app = createApp();
+    const env = createEnv();
+    const oversizedPayload = {
+      schema_version: 1,
+      data_type: "gpx",
+      data: {
+        tracks: [],
+        routes: [],
+        waypoints: [],
+        padding: "x".repeat(2 * 1024 * 1024),
+      },
+    };
+
+    const response = await app.fetch(new Request("https://worker.example/api/upload", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(oversizedPayload),
     }), env);
 
     expect(response.status).toBe(400);
