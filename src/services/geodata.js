@@ -1,3 +1,5 @@
+import { readBoundedBody, BodyLimitError } from "../utils/bounded-body.js";
+import { encodeCanonicalJson, CanonicalJsonLimitError } from "../utils/canonical-json.js";
 import { UploadError } from "../errors/upload-error.js";
 import { MAX_PAYLOAD_BYTES, validateCanonicalPayload } from "../validators/geodata.js";
 import { hashDeleteKey, generateDeleteKey } from "../utils/delete-key.js";
@@ -41,20 +43,13 @@ export function createGeodataService({ storage }) {
 }
 
 async function readCanonicalPayload(request) {
-  const contentLength = request.headers.get("Content-Length");
-  if (contentLength && Number(contentLength) > MAX_PAYLOAD_BYTES) {
-    throw new UploadError("payload too large");
-  }
-
-  const rawBody = await request.text();
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_PAYLOAD_BYTES) {
-    throw new UploadError("payload too large");
-  }
-
   let payload;
   try {
+    const bytes = await readBoundedBody(request.body, MAX_PAYLOAD_BYTES);
+    const rawBody = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     payload = JSON.parse(rawBody);
-  } catch {
+  } catch (error) {
+    if (error instanceof BodyLimitError) throw new UploadError("payload too large");
     throw new UploadError("invalid canonical geodata payload");
   }
 
@@ -62,6 +57,11 @@ async function readCanonicalPayload(request) {
     throw new UploadError("invalid canonical geodata payload");
   }
 
+  try { encodeCanonicalJson(payload); }
+  catch (error) {
+    if (error instanceof CanonicalJsonLimitError) throw new UploadError("payload too large");
+    throw new UploadError("invalid canonical geodata payload");
+  }
   return payload;
 }
 
