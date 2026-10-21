@@ -1,6 +1,6 @@
-// Keep below Cloudflare KV's maximum value size (25 MiB).
-// The margin accounts for the storage envelope and future metadata growth.
+// Separate actual HTTP transport and serialized canonical-content budgets.
 export const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_CANONICAL_JSON_BYTES = 10 * 1024 * 1024;
 
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);

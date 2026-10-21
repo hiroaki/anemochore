@@ -1,3 +1,5 @@
+import { encodeCanonicalJson } from "../utils/canonical-json.js";
+import { apiCorsHeaders } from "../middleware/cors.js";
 import { Hono } from "hono";
 import { apiJson } from "../utils/responses.js";
 import { uploadRateLimit, deleteRateLimit } from "../middleware/rate-limit.js";
@@ -80,6 +82,11 @@ apiRoutes.get("/gpx/:id", async (c) => {
     return apiJson(c, { error: "Not found" }, 404);
   }
 
+  // Content alone is measured; the surrounding KV record has its own overhead.
+  let json;
+  try { json = encodeCanonicalJson(data.content); }
+  catch { throw new Error("stored canonical content rejected"); }
+
   emitAuditEvent(c, "kv_fetched", {
     result: "success",
     status: 200,
@@ -88,7 +95,7 @@ apiRoutes.get("/gpx/:id", async (c) => {
 
   // Only the canonical payload is ever returned — service metadata (delete_key,
   // created_at, format, content_type) never leaves this response.
-  return apiJson(c, data.content);
+  return c.body(json, 200, { ...apiCorsHeaders(), "Content-Type": "application/json" });
 });
 
 // Delete GPX data by ID
