@@ -8,7 +8,7 @@ Anemochore は、GPX ファイルを一時保存し、共有 URL を発行する
 
 ## 必要環境
 
-- Node.js 22 以降
+- Node.js 24.22.1（24.x のみ）と npm 11.19.1
 - npm
 - Cloudflare アカウントと Wrangler 認証
 - Workers KV Namespace
