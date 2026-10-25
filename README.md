@@ -8,7 +8,7 @@ Currently, Anemochore supports GPX files only. Stored data includes format metad
 
 ## Requirements
 
-- Node.js 22 or later
+- Node.js 24.22.1 (24.x only) and npm 11.19.1
 - npm
 - Cloudflare account and Wrangler authentication
 - Workers KV Namespace
